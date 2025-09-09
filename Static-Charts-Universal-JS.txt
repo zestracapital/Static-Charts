@@ -1,0 +1,355 @@
+// =================================================================================== 
+// STATIC CHART DESIGNS - UNIVERSAL JAVASCRIPT
+// ===================================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Configuration from HTML
+    const config = window.INDICATOR_CONFIG || {
+        seriesId: 'GDP',
+        title: 'Economic Indicator',
+        description: 'Economic data visualization'
+    };
+
+    // FRED Proxy URL
+    const FRED_PROXY_URL = '/fred-proxy.php';
+
+    // Design detection
+    let currentDesign = null;
+    let elements = {};
+    
+    // Detect which design is loaded
+    if (document.getElementById('static-chart-1')) {
+        currentDesign = 'design1';
+        elements = {
+            container: document.getElementById('static-chart-1'),
+            canvas: document.getElementById('sc1-chart'),
+            title: document.getElementById('sc1-indicator-title'),
+            description: document.getElementById('sc1-indicator-desc'),
+            lastUpdate: document.getElementById('sc1-last-update'),
+            loading: document.getElementById('sc1-loading'),
+            themeToggle: document.getElementById('sc1-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc1-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-2')) {
+        currentDesign = 'design2';
+        elements = {
+            container: document.getElementById('static-chart-2'),
+            canvas: document.getElementById('sc2-chart'),
+            title: document.getElementById('sc2-indicator-title'),
+            description: document.getElementById('sc2-indicator-desc'),
+            lastUpdate: document.getElementById('sc2-last-update'),
+            loading: document.getElementById('sc2-loading'),
+            themeToggle: document.getElementById('sc2-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc2-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-3')) {
+        currentDesign = 'design3';
+        elements = {
+            container: document.getElementById('static-chart-3'),
+            canvas: document.getElementById('sc3-chart'),
+            title: document.getElementById('sc3-indicator-title'),
+            description: document.getElementById('sc3-indicator-desc'),
+            lastUpdate: document.getElementById('sc3-last-update'),
+            loading: document.getElementById('sc3-loading'),
+            themeToggle: document.getElementById('sc3-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc3-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-4')) {
+        currentDesign = 'design4';
+        elements = {
+            container: document.getElementById('static-chart-4'),
+            canvas: document.getElementById('sc4-chart'),
+            title: document.getElementById('sc4-indicator-title'),
+            description: document.getElementById('sc4-indicator-desc'),
+            lastUpdate: document.getElementById('sc4-last-update'),
+            loading: document.getElementById('sc4-loading'),
+            themeToggle: document.getElementById('sc4-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc4-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-5')) {
+        currentDesign = 'design5';
+        elements = {
+            container: document.getElementById('static-chart-5'),
+            canvas: document.getElementById('sc5-chart'),
+            title: document.getElementById('sc5-indicator-title'),
+            description: document.getElementById('sc5-indicator-desc'),
+            lastUpdate: document.getElementById('sc5-last-update'),
+            loading: document.getElementById('sc5-loading'),
+            themeToggle: document.getElementById('sc5-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc5-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-6')) {
+        currentDesign = 'design6';
+        elements = {
+            container: document.getElementById('static-chart-6'),
+            canvas: document.getElementById('sc6-chart'),
+            title: document.getElementById('sc6-indicator-title'),
+            description: document.getElementById('sc6-indicator-desc'),
+            lastUpdate: document.getElementById('sc6-last-update'),
+            loading: document.getElementById('sc6-loading'),
+            themeToggle: document.getElementById('sc6-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc6-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-7')) {
+        currentDesign = 'design7';
+        elements = {
+            container: document.getElementById('static-chart-7'),
+            canvas: document.getElementById('sc7-chart'),
+            title: document.getElementById('sc7-indicator-title'),
+            description: document.getElementById('sc7-indicator-desc'),
+            lastUpdate: document.getElementById('sc7-last-update'),
+            loading: document.getElementById('sc7-loading'),
+            themeToggle: document.getElementById('sc7-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc7-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-8')) {
+        currentDesign = 'design8';
+        elements = {
+            container: document.getElementById('static-chart-8'),
+            canvas: document.getElementById('sc8-chart'),
+            title: document.getElementById('sc8-indicator-title'),
+            description: document.getElementById('sc8-indicator-desc'),
+            lastUpdate: document.getElementById('sc8-last-update'),
+            loading: document.getElementById('sc8-loading'),
+            themeToggle: document.getElementById('sc8-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc8-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-9')) {
+        currentDesign = 'design9';
+        elements = {
+            container: document.getElementById('static-chart-9'),
+            canvas: document.getElementById('sc9-chart'),
+            title: document.getElementById('sc9-indicator-title'),
+            description: document.getElementById('sc9-indicator-desc'),
+            lastUpdate: document.getElementById('sc9-last-update'),
+            loading: document.getElementById('sc9-loading'),
+            themeToggle: document.getElementById('sc9-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc9-tf-btn')
+        };
+    } else if (document.getElementById('static-chart-10')) {
+        currentDesign = 'design10';
+        elements = {
+            container: document.getElementById('static-chart-10'),
+            canvas: document.getElementById('sc10-chart'),
+            title: document.getElementById('sc10-indicator-title'),
+            description: document.getElementById('sc10-indicator-desc'),
+            lastUpdate: document.getElementById('sc10-last-update'),
+            loading: document.getElementById('sc10-loading'),
+            themeToggle: document.getElementById('sc10-theme-toggle'),
+            timeframes: document.querySelectorAll('.sc10-tf-btn')
+        };
+    }
+
+    if (!currentDesign || !elements.canvas) return;
+
+    const ctx = elements.canvas.getContext('2d');
+    let chart = null;
+    let chartData = { full: [], current: [] };
+
+    // Theme configuration
+    const themes = {
+        light: {
+            gridColor: 'rgba(0, 0, 0, 0.06)',
+            textColor: '#718096',
+            line: '#00BCD4',
+            gradient: 'rgba(0, 188, 212, 0.1)'
+        },
+        dark: {
+            gridColor: 'rgba(255, 255, 255, 0.08)',
+            textColor: '#a0aec0',
+            line: '#4DD0E1',
+            gradient: 'rgba(77, 208, 225, 0.1)'
+        }
+    };
+
+    let currentTheme = themes.light;
+
+    // Initialize with config data
+    if (elements.title) elements.title.textContent = config.title;
+    if (elements.description) elements.description.textContent = config.description;
+
+    // Create chart
+    function createChart() {
+        if (!chartData.current || chartData.current.length === 0) return;
+        
+        if (chart) chart.destroy();
+
+        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient.addColorStop(0, currentTheme.gradient);
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: config.title,
+                    data: chartData.current,
+                    borderColor: currentTheme.line,
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderWidth: 0,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return `${config.title}: ${context.parsed.y.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'month',
+                            displayFormats: { month: 'MMM yyyy' }
+                        },
+                        grid: { 
+                            color: currentTheme.gridColor,
+                            drawBorder: false 
+                        },
+                        ticks: { 
+                            color: currentTheme.textColor,
+                            font: { size: 11 }
+                        },
+                        border: { display: false }
+                    },
+                    y: {
+                        grid: { 
+                            color: currentTheme.gridColor,
+                            drawBorder: false 
+                        },
+                        ticks: { 
+                            color: currentTheme.textColor,
+                            font: { size: 11 },
+                            callback: function(value) {
+                                return value.toLocaleString();
+                            }
+                        },
+                        border: { display: false }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                }
+            }
+        });
+
+        elements.loading.style.display = 'none';
+    }
+
+    // Fetch data
+    function fetchData() {
+        fetch(`${FRED_PROXY_URL}?series=${config.seriesId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                
+                const observations = data.observations || [];
+                chartData.full = observations
+                    .filter(obs => obs.value !== '.' && obs.value !== null)
+                    .map(obs => ({
+                        x: new Date(obs.date),
+                        y: parseFloat(obs.value)
+                    }));
+
+                if (chartData.full.length === 0) {
+                    throw new Error('No valid data found');
+                }
+
+                // Set default to 5Y
+                applyTimeframe('5');
+                updateLastUpdate();
+                createChart();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                elements.loading.innerHTML = '<span style="color: #e53e3e;">Error loading data: ' + error.message + '</span>';
+            });
+    }
+
+    // Apply timeframe filter
+    function applyTimeframe(range) {
+        if (range === 'all') {
+            chartData.current = [...chartData.full];
+        } else {
+            const months = parseFloat(range) * 12;
+            const cutoffDate = new Date();
+            cutoffDate.setMonth(cutoffDate.getMonth() - months);
+            
+            chartData.current = chartData.full.filter(d => d.x >= cutoffDate);
+        }
+        
+        if (chart) createChart();
+    }
+
+    // Update last update info
+    function updateLastUpdate() {
+        if (chartData.full.length === 0) return;
+        
+        const lastDate = chartData.full[chartData.full.length - 1].x;
+        const now = new Date();
+        const diffTime = Math.abs(now - lastDate);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let updateText = 'Last updated: ';
+        if (diffDays === 1) {
+            updateText += 'Yesterday';
+        } else if (diffDays < 7) {
+            updateText += `${diffDays} days ago`;
+        } else {
+            updateText += lastDate.toLocaleDateString();
+        }
+        
+        if (elements.lastUpdate) {
+            elements.lastUpdate.textContent = updateText;
+        }
+    }
+
+    // Theme toggle
+    if (elements.themeToggle) {
+        elements.themeToggle.addEventListener('click', function() {
+            const isDark = elements.container.classList.toggle('dark');
+            
+            // Update theme icons
+            const sunIcon = elements.container.querySelector(`.${currentDesign.replace('design', 'sc')}-sun`);
+            const moonIcon = elements.container.querySelector(`.${currentDesign.replace('design', 'sc')}-moon`);
+            
+            if (sunIcon && moonIcon) {
+                sunIcon.style.display = isDark ? 'none' : 'block';
+                moonIcon.style.display = isDark ? 'block' : 'none';
+            }
+            
+            currentTheme = isDark ? themes.dark : themes.light;
+            if (chart) createChart();
+        });
+    }
+
+    // Timeframe controls
+    elements.timeframes.forEach(button => {
+        button.addEventListener('click', function() {
+            elements.timeframes.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            applyTimeframe(this.dataset.range);
+        });
+    });
+
+    // Initialize
+    fetchData();
+});

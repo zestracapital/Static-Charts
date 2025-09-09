@@ -1,0 +1,318 @@
+<!-- =================================================================================== -->
+<!-- DESIGN 3 - FULL WIDTH DASHBOARD (Static Indicator Display) -->
+<!-- =================================================================================== -->
+
+<!-- Chart.js CDN Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<!-- INDICATOR CONFIGURATION (Change this for different indicators) -->
+<script>
+window.INDICATOR_CONFIG = {
+    seriesId: 'UNRATE',
+    title: 'U.S. Civilian Unemployment Rate',
+    description: 'Monthly percentage of the labor force that is unemployed and actively seeking employment'
+};
+</script>
+
+<div id="static-chart-3" class="sc3-container">
+    <!-- Top Bar -->
+    <div class="sc3-topbar">
+        <div class="sc3-brand">
+            <h1>Zestra Capital</h1>
+            <span>Economic Analytics Platform</span>
+        </div>
+        <div class="sc3-controls">
+            <button id="sc3-theme-toggle" class="sc3-theme-btn">
+                <svg class="sc3-sun" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"/>
+                </svg>
+                <svg class="sc3-moon" style="display: none;" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12.009 24a12.067 12.067 0 0 1-8.466-3.543"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="sc3-main">
+        <!-- Info Section -->
+        <div class="sc3-info-section">
+            <h2 id="sc3-indicator-title">Loading...</h2>
+            <p id="sc3-indicator-desc">Loading indicator data...</p>
+            <span id="sc3-last-update" class="sc3-update">Last updated: Loading...</span>
+        </div>
+
+        <!-- Timeframe Bar -->
+        <div class="sc3-timeframe-bar">
+            <div class="sc3-timeframes">
+                <button class="sc3-tf-btn" data-range="0.5">6 Months</button>
+                <button class="sc3-tf-btn" data-range="1">1 Year</button>
+                <button class="sc3-tf-btn" data-range="2">2 Years</button>
+                <button class="sc3-tf-btn active" data-range="5">5 Years</button>
+                <button class="sc3-tf-btn" data-range="10">10 Years</button>
+                <button class="sc3-tf-btn" data-range="all">All Time</button>
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="sc3-chart-section">
+            <canvas id="sc3-chart"></canvas>
+            <div id="sc3-loading" class="sc3-loading">
+                <div class="sc3-spinner"></div>
+                <span>Loading economic data...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sc3-container {
+    --sc3-primary: #00BCD4;
+    --sc3-primary-dark: #0097A7;
+    --sc3-bg: #fafbfc;
+    --sc3-surface: #ffffff;
+    --sc3-border: #e1e8ed;
+    --sc3-text: #14171a;
+    --sc3-text-muted: #5b7083;
+    --sc3-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--sc3-bg);
+    color: var(--sc3-text);
+    min-height: 100vh;
+    width: 100%;
+}
+
+.sc3-container.dark {
+    --sc3-primary: #4DD0E1;
+    --sc3-primary-dark: #26C6DA;
+    --sc3-bg: #15202b;
+    --sc3-surface: #1e2732;
+    --sc3-border: #38444d;
+    --sc3-text: #ffffff;
+    --sc3-text-muted: #8899a6;
+    --sc3-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.sc3-topbar {
+    background: var(--sc3-surface);
+    border-bottom: 1px solid var(--sc3-border);
+    padding: 1.5rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--sc3-shadow);
+}
+
+.sc3-brand h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sc3-primary);
+}
+
+.sc3-brand span {
+    font-size: 0.875rem;
+    color: var(--sc3-text-muted);
+    display: block;
+}
+
+.sc3-theme-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--sc3-border);
+    background: var(--sc3-bg);
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--sc3-text-muted);
+}
+
+.sc3-theme-btn:hover {
+    background: var(--sc3-primary);
+    color: white;
+    border-color: var(--sc3-primary);
+}
+
+.sc3-theme-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.sc3-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 3rem 2rem;
+}
+
+.sc3-info-section {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.sc3-info-section h2 {
+    margin: 0 0 1rem 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--sc3-text);
+    line-height: 1.2;
+}
+
+.sc3-info-section p {
+    margin: 0 0 1.5rem 0;
+    color: var(--sc3-text-muted);
+    font-size: 1.125rem;
+    line-height: 1.6;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.sc3-update {
+    font-size: 0.875rem;
+    color: var(--sc3-text-muted);
+    background: var(--sc3-surface);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--sc3-border);
+    display: inline-block;
+}
+
+.sc3-timeframe-bar {
+    background: var(--sc3-surface);
+    border: 1px solid var(--sc3-border);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+.sc3-timeframes {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.sc3-tf-btn {
+    padding: 0.75rem 1.5rem;
+    background: var(--sc3-bg);
+    border: 1px solid var(--sc3-border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sc3-text-muted);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.sc3-tf-btn:hover {
+    background: var(--sc3-surface);
+    color: var(--sc3-text);
+    border-color: var(--sc3-primary);
+    transform: translateY(-1px);
+}
+
+.sc3-tf-btn.active {
+    background: var(--sc3-primary);
+    color: white;
+    border-color: var(--sc3-primary);
+    box-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+}
+
+.sc3-chart-section {
+    background: var(--sc3-surface);
+    border: 1px solid var(--sc3-border);
+    border-radius: 12px;
+    padding: 2rem;
+    position: relative;
+    height: 500px;
+    box-shadow: var(--sc3-shadow);
+}
+
+#sc3-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.sc3-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--sc3-surface);
+    border-radius: 12px;
+    color: var(--sc3-text-muted);
+    gap: 1rem;
+}
+
+.sc3-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--sc3-border);
+    border-top: 3px solid var(--sc3-primary);
+    border-radius: 50%;
+    animation: sc3-spin 1s linear infinite;
+}
+
+@keyframes sc3-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 1024px) {
+    .sc3-main {
+        padding: 2rem 1rem;
+    }
+    
+    .sc3-info-section h2 {
+        font-size: 2rem;
+    }
+    
+    .sc3-timeframes {
+        gap: 0.25rem;
+    }
+    
+    .sc3-tf-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8125rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .sc3-topbar {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .sc3-main {
+        padding: 1.5rem 1rem;
+    }
+    
+    .sc3-info-section h2 {
+        font-size: 1.75rem;
+    }
+    
+    .sc3-info-section p {
+        font-size: 1rem;
+    }
+    
+    .sc3-chart-section {
+        height: 350px;
+        padding: 1rem;
+    }
+}
+</style>

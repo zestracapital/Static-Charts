@@ -1,0 +1,276 @@
+<!-- =================================================================================== -->
+<!-- DESIGN 1 - MINIMALIST CLEAN (Static Indicator Display) -->
+<!-- =================================================================================== -->
+
+<!-- Chart.js CDN Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<!-- INDICATOR CONFIGURATION (Change this for different indicators) -->
+<script>
+window.INDICATOR_CONFIG = {
+    seriesId: 'GDP',
+    title: 'U.S. Gross Domestic Product',
+    description: 'Quarterly measurement of the total value of goods and services produced in the United States'
+};
+</script>
+
+<div id="static-chart-1" class="sc1-container">
+    <!-- Header -->
+    <div class="sc1-header">
+        <div class="sc1-branding">
+            <h1>Zestra Capital</h1>
+            <span>Economic Analytics</span>
+        </div>
+        <button id="sc1-theme-toggle" class="sc1-theme-btn">
+            <svg class="sc1-sun" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"/>
+            </svg>
+            <svg class="sc1-moon" style="display: none;" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.009 24a12.067 12.067 0 0 1-8.466-3.543"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Indicator Info -->
+    <div class="sc1-info">
+        <h2 id="sc1-indicator-title">Loading...</h2>
+        <p id="sc1-indicator-desc">Loading indicator data...</p>
+        <span id="sc1-last-update" class="sc1-update">Last updated: Loading...</span>
+    </div>
+
+    <!-- Timeframe Controls -->
+    <div class="sc1-controls">
+        <div class="sc1-timeframes">
+            <button class="sc1-tf-btn" data-range="0.5">6M</button>
+            <button class="sc1-tf-btn" data-range="1">1Y</button>
+            <button class="sc1-tf-btn" data-range="2">2Y</button>
+            <button class="sc1-tf-btn active" data-range="5">5Y</button>
+            <button class="sc1-tf-btn" data-range="10">10Y</button>
+            <button class="sc1-tf-btn" data-range="all">All</button>
+        </div>
+    </div>
+
+    <!-- Chart Area -->
+    <div class="sc1-chart-area">
+        <canvas id="sc1-chart"></canvas>
+        <div id="sc1-loading" class="sc1-loading">
+            <div class="sc1-spinner"></div>
+            <span>Loading economic data...</span>
+        </div>
+    </div>
+</div>
+
+<style>
+.sc1-container {
+    --sc1-primary: #00BCD4;
+    --sc1-bg: #ffffff;
+    --sc1-surface: #f8fafc;
+    --sc1-border: #e2e8f0;
+    --sc1-text: #1a202c;
+    --sc1-text-muted: #718096;
+    --sc1-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 2rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--sc1-bg);
+    border-radius: 12px;
+    box-shadow: var(--sc1-shadow);
+    color: var(--sc1-text);
+}
+
+.sc1-container.dark {
+    --sc1-primary: #4DD0E1;
+    --sc1-bg: #1a202c;
+    --sc1-surface: #2d3748;
+    --sc1-border: #4a5568;
+    --sc1-text: #ffffff;
+    --sc1-text-muted: #a0aec0;
+    --sc1-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.sc1-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--sc1-border);
+}
+
+.sc1-branding h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sc1-primary);
+}
+
+.sc1-branding span {
+    font-size: 0.875rem;
+    color: var(--sc1-text-muted);
+    display: block;
+}
+
+.sc1-theme-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--sc1-border);
+    background: var(--sc1-surface);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--sc1-text-muted);
+}
+
+.sc1-theme-btn:hover {
+    background: var(--sc1-primary);
+    color: white;
+    border-color: var(--sc1-primary);
+}
+
+.sc1-theme-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.sc1-info {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.sc1-info h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--sc1-text);
+}
+
+.sc1-info p {
+    margin: 0 0 1rem 0;
+    color: var(--sc1-text-muted);
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.sc1-update {
+    font-size: 0.875rem;
+    color: var(--sc1-text-muted);
+    background: var(--sc1-surface);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--sc1-border);
+}
+
+.sc1-controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.sc1-timeframes {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--sc1-surface);
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid var(--sc1-border);
+}
+
+.sc1-tf-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sc1-text-muted);
+    transition: all 0.2s ease;
+}
+
+.sc1-tf-btn:hover {
+    background: var(--sc1-bg);
+    color: var(--sc1-text);
+}
+
+.sc1-tf-btn.active {
+    background: var(--sc1-primary);
+    color: white;
+}
+
+.sc1-chart-area {
+    position: relative;
+    height: 400px;
+    background: var(--sc1-surface);
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid var(--sc1-border);
+}
+
+#sc1-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.sc1-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--sc1-surface);
+    border-radius: 8px;
+    color: var(--sc1-text-muted);
+    gap: 1rem;
+}
+
+.sc1-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--sc1-border);
+    border-top: 2px solid var(--sc1-primary);
+    border-radius: 50%;
+    animation: sc1-spin 1s linear infinite;
+}
+
+@keyframes sc1-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .sc1-container {
+        margin: 1rem;
+        padding: 1rem;
+    }
+    
+    .sc1-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+    
+    .sc1-info h2 {
+        font-size: 1.5rem;
+    }
+    
+    .sc1-timeframes {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .sc1-chart-area {
+        height: 300px;
+        padding: 1rem;
+    }
+}
+</style>

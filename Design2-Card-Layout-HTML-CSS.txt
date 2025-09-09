@@ -1,0 +1,304 @@
+<!-- =================================================================================== -->
+<!-- DESIGN 2 - CARD LAYOUT (Static Indicator Display) -->
+<!-- =================================================================================== -->
+
+<!-- Chart.js CDN Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+<!-- INDICATOR CONFIGURATION (Change this for different indicators) -->
+<script>
+window.INDICATOR_CONFIG = {
+    seriesId: 'CPIAUCSL',
+    title: 'U.S. Consumer Price Index (Inflation)',
+    description: 'Monthly measure of changes in the prices of goods and services consumed by households'
+};
+</script>
+
+<div id="static-chart-2" class="sc2-container">
+    <!-- Header Card -->
+    <div class="sc2-header-card">
+        <div class="sc2-brand">
+            <h1>Zestra Capital</h1>
+            <span>Economic Analytics</span>
+        </div>
+        <button id="sc2-theme-toggle" class="sc2-theme-btn">
+            <svg class="sc2-sun" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z"/>
+            </svg>
+            <svg class="sc2-moon" style="display: none;" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.009 24a12.067 12.067 0 0 1-8.466-3.543"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Info Card -->
+    <div class="sc2-info-card">
+        <h2 id="sc2-indicator-title">Loading...</h2>
+        <p id="sc2-indicator-desc">Loading indicator data...</p>
+        <div class="sc2-meta">
+            <span id="sc2-last-update" class="sc2-update">Last updated: Loading...</span>
+        </div>
+    </div>
+
+    <!-- Controls Card -->
+    <div class="sc2-controls-card">
+        <div class="sc2-timeframes">
+            <button class="sc2-tf-btn" data-range="0.5">6M</button>
+            <button class="sc2-tf-btn" data-range="1">1Y</button>
+            <button class="sc2-tf-btn" data-range="2">2Y</button>
+            <button class="sc2-tf-btn active" data-range="5">5Y</button>
+            <button class="sc2-tf-btn" data-range="10">10Y</button>
+            <button class="sc2-tf-btn" data-range="all">All</button>
+        </div>
+    </div>
+
+    <!-- Chart Card -->
+    <div class="sc2-chart-card">
+        <canvas id="sc2-chart"></canvas>
+        <div id="sc2-loading" class="sc2-loading">
+            <div class="sc2-spinner"></div>
+            <span>Loading economic data...</span>
+        </div>
+    </div>
+</div>
+
+<style>
+.sc2-container {
+    --sc2-primary: #00BCD4;
+    --sc2-bg: #f7fafc;
+    --sc2-card: #ffffff;
+    --sc2-border: #e2e8f0;
+    --sc2-text: #2d3748;
+    --sc2-text-muted: #718096;
+    --sc2-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    --sc2-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 2rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--sc2-bg);
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.sc2-container.dark {
+    --sc2-primary: #4DD0E1;
+    --sc2-bg: #1a202c;
+    --sc2-card: #2d3748;
+    --sc2-border: #4a5568;
+    --sc2-text: #ffffff;
+    --sc2-text-muted: #a0aec0;
+    --sc2-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    --sc2-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.sc2-header-card {
+    background: var(--sc2-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--sc2-shadow);
+    border: 1px solid var(--sc2-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sc2-brand h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--sc2-primary);
+}
+
+.sc2-brand span {
+    font-size: 0.875rem;
+    color: var(--sc2-text-muted);
+    display: block;
+}
+
+.sc2-theme-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--sc2-border);
+    background: var(--sc2-bg);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    color: var(--sc2-text-muted);
+}
+
+.sc2-theme-btn:hover {
+    background: var(--sc2-primary);
+    color: white;
+    border-color: var(--sc2-primary);
+    transform: scale(1.05);
+}
+
+.sc2-theme-btn svg {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.sc2-info-card {
+    background: var(--sc2-card);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--sc2-shadow);
+    border: 1px solid var(--sc2-border);
+    text-align: center;
+}
+
+.sc2-info-card h2 {
+    margin: 0 0 1rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--sc2-text);
+    line-height: 1.2;
+}
+
+.sc2-info-card p {
+    margin: 0 0 1.5rem 0;
+    color: var(--sc2-text-muted);
+    font-size: 1rem;
+    line-height: 1.6;
+}
+
+.sc2-update {
+    font-size: 0.875rem;
+    color: var(--sc2-text-muted);
+    background: var(--sc2-bg);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    border: 1px solid var(--sc2-border);
+    display: inline-block;
+}
+
+.sc2-controls-card {
+    background: var(--sc2-card);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--sc2-shadow);
+    border: 1px solid var(--sc2-border);
+    display: flex;
+    justify-content: center;
+}
+
+.sc2-timeframes {
+    display: flex;
+    gap: 0.5rem;
+    background: var(--sc2-bg);
+    padding: 0.5rem;
+    border-radius: 10px;
+    border: 1px solid var(--sc2-border);
+}
+
+.sc2-tf-btn {
+    padding: 0.75rem 1.25rem;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--sc2-text-muted);
+    transition: all 0.2s ease;
+    min-width: 3rem;
+}
+
+.sc2-tf-btn:hover {
+    background: var(--sc2-card);
+    color: var(--sc2-text);
+    transform: translateY(-1px);
+}
+
+.sc2-tf-btn.active {
+    background: var(--sc2-primary);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 188, 212, 0.3);
+}
+
+.sc2-chart-card {
+    background: var(--sc2-card);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: var(--sc2-shadow-lg);
+    border: 1px solid var(--sc2-border);
+    position: relative;
+    height: 500px;
+}
+
+#sc2-chart {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.sc2-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--sc2-card);
+    border-radius: 12px;
+    color: var(--sc2-text-muted);
+    gap: 1rem;
+}
+
+.sc2-spinner {
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 3px solid var(--sc2-border);
+    border-top: 3px solid var(--sc2-primary);
+    border-radius: 50%;
+    animation: sc2-spin 1s linear infinite;
+}
+
+@keyframes sc2-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+    .sc2-container {
+        margin: 1rem;
+        padding: 1rem;
+        gap: 1rem;
+    }
+    
+    .sc2-header-card {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+        padding: 1rem;
+    }
+    
+    .sc2-info-card {
+        padding: 1.5rem;
+    }
+    
+    .sc2-info-card h2 {
+        font-size: 1.5rem;
+    }
+    
+    .sc2-timeframes {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .sc2-chart-card {
+        height: 350px;
+        padding: 1rem;
+    }
+}
+</style>
