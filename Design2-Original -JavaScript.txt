@@ -1,0 +1,679 @@
+// =================================================================================== 
+// DESIGN 2 - JAVASCRIPT (WPCode Snippet me paste karna - sirf JS code) - FIXED
+// ===================================================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Element references
+    const dashboard = document.getElementById('zestra-dashboard');
+    if (!dashboard) return; // Exit if dashboard not found
+    
+    const chartTitle = document.getElementById('zd-chart-title');
+    const lastUpdate = document.getElementById('zd-last-update');
+    const change3M = document.getElementById('zd-3m-change');
+    const change6M = document.getElementById('zd-6m-change');
+    const change1Y = document.getElementById('zd-1y-change');
+    const canvas = document.getElementById('zd-main-chart');
+    const ctx = canvas.getContext('2d');
+    const loading = document.getElementById('zd-loading');
+    
+    // Controls
+    const themeToggle = document.getElementById('zd-theme-toggle');
+    const fullscreenToggle = document.getElementById('zd-fullscreen-toggle');
+    const searchToggle = document.getElementById('zd-search-toggle');
+    const searchPanel = document.getElementById('zd-search-panel');
+    const searchInput = document.getElementById('zd-search-input');
+    const searchResults = document.getElementById('zd-search-results');
+    const searchClear = document.querySelector('.zd-search-clear');
+    
+    // Chart types
+    const lineChart = document.getElementById('zd-line-chart');
+    const barChart = document.getElementById('zd-bar-chart');
+    
+    // Timeframes
+    const timeframeButtons = document.querySelectorAll('.zd-tf-btn');
+    
+    // Compare
+    const compareBtn = document.getElementById('zd-compare-btn');
+    const compareModal = document.getElementById('zd-compare-modal');
+    const closeCompareModal = document.getElementById('zd-close-compare-modal');
+    const compareSearchInput = document.getElementById('zd-compare-search-input');
+    const compareSearchResults = document.getElementById('zd-compare-search-results');
+    const comparisonSidebar = document.getElementById('zd-comparison-sidebar');
+    const closeSidebar = document.getElementById('zd-close-sidebar');
+    const comparisonList = document.getElementById('zd-comparison-list');
+
+    // FRED Proxy API Configuration (tumhari server-side file)
+    const FRED_PROXY_URL = '/fred-proxy.php'; // Adjust path as needed
+
+    // Default indicators to try on page load
+    const DEFAULT_INDICATORS = ['GDP', 'UNRATE', 'CPIAUCSL', 'FEDFUNDS'];
+
+    // Chart configuration
+    const themes = {
+        light: {
+            gridColor: 'rgba(0, 0, 0, 0.05)',
+            textColor: '#5b7083',
+            tooltipBg: 'rgba(255, 255, 255, 0.95)',
+            tooltipText: '#14171a',
+            line1: '#00BCD4',
+            line2: '#FF5722',
+            barBg: 'rgba(0, 188, 212, 0.8)'
+        },
+        dark: {
+            gridColor: 'rgba(255, 255, 255, 0.08)',
+            textColor: '#8899a6',
+            tooltipBg: 'rgba(21, 32, 43, 0.95)',
+            tooltipText: '#ffffff',
+            line1: '#26C6DA',
+            line2: '#FF7043',
+            barBg: 'rgba(38, 198, 218, 0.8)'
+        }
+    };
+
+    let currentTheme = themes.light;
+    let zestraChart = null;
+    let chartDataStore = {
+        primary: { full: [], current: [], title: '', lastUpdate: null },
+        secondary: { full: [], current: [], title: '' }
+    };
+    let currentChartType = 'line';
+    let searchDebounceTimer;
+    let compareItems = [];
+
+    // Chart creation function with enhanced styling
+    function createOrUpdateChart() {
+        const primaryData = chartDataStore.primary.current;
+        const secondaryData = chartDataStore.secondary.current;
+        const hasSecondary = secondaryData && secondaryData.length > 0;
+
+        if (!primaryData || primaryData.length === 0) {
+            chartTitle.textContent = 'Loading Default Indicator...';
+            updateHistoricalStats(null);
+            return;
+        }
+
+        if (zestraChart) zestraChart.destroy();
+
+        function getPaddedRange(dataArray) {
+            if (!dataArray || dataArray.length === 0) return { min: 0, max: 0 };
+            
+            const values = dataArray.map(item => parseFloat(item.y));
+            const dataMin = Math.min(...values);
+            const dataMax = Math.max(...values);
+            const range = dataMax - dataMin;
+            const padding = Math.max(range * 0.08, Math.abs(dataMax) * 0.02);
+            
+            return {
+                min: dataMin - padding,
+                max: dataMax + padding
+            };
+        }
+
+        const primaryRange = getPaddedRange(primaryData);
+        const secondaryRange = hasSecondary ? getPaddedRange(secondaryData) : null;
+
+        const datasets = [{
+            label: chartDataStore.primary.title,
+            data: primaryData,
+            borderColor: currentTheme.line1,
+            backgroundColor: currentChartType === 'bar' ? currentTheme.barBg : `${currentTheme.line1}15`,
+            borderWidth: 3,
+            fill: false,
+            type: currentChartType === 'bar' ? 'bar' : 'line',
+            yAxisID: 'y',
+            pointRadius: 0,
+            pointHoverRadius: 6,
+            tension: 0.3,
+        }];
+
+        if (hasSecondary) {
+            datasets.push({
+                label: chartDataStore.secondary.title,
+                data: secondaryData,
+                borderColor: currentTheme.line2,
+                backgroundColor: `${currentTheme.line2}15`,
+                borderWidth: 3,
+                fill: false,
+                type: 'line',
+                yAxisID: 'y1',
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                tension: 0.3,
+            });
+        }
+
+        const scales = {
+            x: {
+                type: 'time',
+                time: { 
+                    unit: 'month', 
+                    displayFormats: { month: 'MMM yyyy' }
+                },
+                grid: { 
+                    color: currentTheme.gridColor, 
+                    drawBorder: false 
+                },
+                ticks: { 
+                    color: currentTheme.textColor,
+                    maxTicksLimit: 10,
+                    font: { size: 11, weight: '500' }
+                },
+                border: { display: false }
+            },
+            y: {
+                min: primaryRange.min,
+                max: primaryRange.max,
+                grid: { 
+                    color: currentTheme.gridColor, 
+                    drawBorder: false 
+                },
+                ticks: { 
+                    color: currentTheme.textColor,
+                    font: { size: 11, weight: '500' },
+                    callback: function(value) {
+                        return value.toLocaleString();
+                    }
+                },
+                position: 'left',
+                border: { display: false }
+            }
+        };
+
+        if (hasSecondary) {
+            scales.y1 = {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                min: secondaryRange.min,
+                max: secondaryRange.max,
+                grid: { drawOnChartArea: false },
+                ticks: { 
+                    color: currentTheme.textColor,
+                    font: { size: 11, weight: '500' },
+                    callback: function(value) {
+                        return value.toLocaleString();
+                    }
+                },
+                border: { display: false }
+            };
+        }
+
+        zestraChart = new Chart(ctx, {
+            type: currentChartType === 'bar' ? 'bar' : 'line',
+            data: { datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        display: hasSecondary,
+                        position: 'top',
+                        align: 'start',
+                        labels: { 
+                            color: currentTheme.textColor,
+                            usePointStyle: true,
+                            padding: 20,
+                            font: { size: 12, weight: '600' }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: currentTheme.tooltipBg,
+                        titleColor: currentTheme.tooltipText,
+                        bodyColor: currentTheme.tooltipText,
+                        borderWidth: 0,
+                        cornerRadius: 12,
+                        padding: 16,
+                        titleFont: { size: 13, weight: '600' },
+                        bodyFont: { size: 12, weight: '500' },
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.parsed.y.toLocaleString()}`;
+                            }
+                        }
+                    }
+                },
+                scales,
+                elements: {
+                    line: { tension: 0.3 },
+                    point: { hoverBorderWidth: 3 }
+                }
+            }
+        });
+
+        chartTitle.textContent = chartDataStore.primary.title;
+        updateHistoricalStats(primaryData);
+        updateLastUpdate(chartDataStore.primary.lastUpdate);
+        loading.style.display = 'none';
+    }
+
+    // Update historical stats function (3M, 6M, 1Y changes)
+    function updateHistoricalStats(data) {
+        if (!data || data.length === 0) {
+            change3M.textContent = '--';
+            change6M.textContent = '--';
+            change1Y.textContent = '--';
+            return;
+        }
+
+        const currentDate = new Date();
+        const current = data[data.length - 1].y;
+        
+        // Find values for 3M, 6M, 1Y ago
+        const threeMonthsAgo = new Date(currentDate.setMonth(currentDate.getMonth() - 3));
+        const sixMonthsAgo = new Date(currentDate.setMonth(currentDate.getMonth() - 3)); // -6 from original
+        const oneYearAgo = new Date(currentDate.setMonth(currentDate.getMonth() - 6)); // -12 from original
+        
+        // Reset current date
+        const nowDate = new Date();
+        
+        function findValueForDate(targetDate) {
+            // Find closest data point to target date
+            let closest = data[0];
+            let minDiff = Math.abs(new Date(data[0].x) - targetDate);
+            
+            for (let i = 1; i < data.length; i++) {
+                const diff = Math.abs(new Date(data[i].x) - targetDate);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closest = data[i];
+                }
+            }
+            return closest.y;
+        }
+        
+        const threeMonthValue = findValueForDate(threeMonthsAgo);
+        const sixMonthValue = findValueForDate(sixMonthsAgo);
+        const oneYearValue = findValueForDate(oneYearAgo);
+        
+        // Calculate percentage changes
+        const change3MPercent = ((current - threeMonthValue) / threeMonthValue * 100);
+        const change6MPercent = ((current - sixMonthValue) / sixMonthValue * 100);
+        const change1YPercent = ((current - oneYearValue) / oneYearValue * 100);
+        
+        change3M.textContent = `${change3MPercent >= 0 ? '+' : ''}${change3MPercent.toFixed(2)}%`;
+        change3M.style.color = change3MPercent >= 0 ? '#4CAF50' : '#F44336';
+        
+        change6M.textContent = `${change6MPercent >= 0 ? '+' : ''}${change6MPercent.toFixed(2)}%`;
+        change6M.style.color = change6MPercent >= 0 ? '#4CAF50' : '#F44336';
+        
+        change1Y.textContent = `${change1YPercent >= 0 ? '+' : ''}${change1YPercent.toFixed(2)}%`;
+        change1Y.style.color = change1YPercent >= 0 ? '#4CAF50' : '#F44336';
+    }
+
+    // Update last update info
+    function updateLastUpdate(dateStr) {
+        if (!dateStr) {
+            lastUpdate.textContent = 'Loading data...';
+            return;
+        }
+        
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        let updateText = 'Last updated: ';
+        if (diffDays === 1) {
+            updateText += 'Yesterday';
+        } else if (diffDays < 7) {
+            updateText += `${diffDays} days ago`;
+        } else {
+            updateText += date.toLocaleDateString();
+        }
+        
+        lastUpdate.textContent = updateText;
+    }
+
+    // Fetch data function using server-side fred-proxy.php
+    function fetchData(seriesId, seriesTitle, isCompare = false) {
+        if (!isCompare) {
+            loading.style.display = 'flex';
+            chartTitle.textContent = 'Loading...';
+        }
+        
+        // Fetch data from server-side fred-proxy.php
+        fetch(`${FRED_PROXY_URL}?series=${seriesId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Process FRED API response
+                const observations = data.observations || [];
+                const formattedData = observations
+                    .filter(obs => obs.value !== '.' && obs.value !== null)
+                    .map(obs => ({
+                        x: new Date(obs.date),
+                        y: parseFloat(obs.value)
+                    }));
+                
+                if (formattedData.length === 0) {
+                    throw new Error('No valid data found for this indicator');
+                }
+                
+                const lastDataPoint = formattedData[formattedData.length - 1];
+                
+                if (isCompare) {
+                    chartDataStore.secondary = { 
+                        full: formattedData, 
+                        current: [...formattedData], // Start with full data
+                        title: seriesTitle 
+                    };
+                    addCompareItem(seriesTitle, seriesId);
+                } else {
+                    chartDataStore.primary = { 
+                        full: formattedData, 
+                        current: [...formattedData], // Start with full data
+                        title: seriesTitle,
+                        lastUpdate: lastDataPoint.x
+                    };
+                    chartDataStore.secondary = { full: [], current: [], title: '' };
+                    compareItems = [];
+                    updateComparisonSidebar();
+                }
+
+                // Apply current timeframe filter
+                const activeTimeframeBtn = document.querySelector('.zd-tf-btn.active');
+                if (activeTimeframeBtn) {
+                    applyTimeframeFilter(activeTimeframeBtn.dataset.range);
+                }
+                
+                createOrUpdateChart();
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                loading.style.display = 'none';
+                chartTitle.textContent = 'Error loading data: ' + error.message;
+                
+                // If this was the default load attempt, try next default indicator
+                if (!isCompare && DEFAULT_INDICATORS.includes(seriesId)) {
+                    const nextIndex = DEFAULT_INDICATORS.indexOf(seriesId) + 1;
+                    if (nextIndex < DEFAULT_INDICATORS.length) {
+                        setTimeout(() => {
+                            loadDefaultIndicator(nextIndex);
+                        }, 1000);
+                    }
+                }
+            });
+    }
+
+    // Load default indicator on page load
+    function loadDefaultIndicator(startIndex = 0) {
+        if (startIndex >= DEFAULT_INDICATORS.length) {
+            chartTitle.textContent = 'No indicators available. Use search to find data.';
+            lastUpdate.textContent = 'Use the search button above to find indicators';
+            loading.style.display = 'none';
+            return;
+        }
+        
+        const defaultSeries = DEFAULT_INDICATORS[startIndex];
+        
+        // First get series info, then fetch data
+        fetch(`${FRED_PROXY_URL}?search=${defaultSeries}`)
+            .then(response => response.json())
+            .then(searchResults => {
+                if (searchResults && searchResults.length > 0) {
+                    const series = searchResults[0];
+                    fetchData(series.id, series.title, false);
+                } else {
+                    // Try next indicator if this one is not found
+                    loadDefaultIndicator(startIndex + 1);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading default indicator:', error);
+                loadDefaultIndicator(startIndex + 1);
+            });
+    }
+
+    // Apply timeframe filter function
+    function applyTimeframeFilter(rangeInYears) {
+        const filterData = (fullData) => {
+            if (fullData.length === 0) return [];
+            if (rangeInYears === 'all') return [...fullData]; // Return ALL historical data
+            
+            const months = parseFloat(rangeInYears) * 12;
+            const lastDataPointDate = fullData[fullData.length - 1].x;
+            const startDate = new Date(lastDataPointDate);
+            startDate.setMonth(startDate.getMonth() - months);
+            
+            return fullData.filter(d => d.x >= startDate);
+        };
+
+        if (chartDataStore.primary.full.length > 0) {
+            chartDataStore.primary.current = filterData(chartDataStore.primary.full);
+        }
+        
+        if (chartDataStore.secondary.full.length > 0) {
+            chartDataStore.secondary.current = filterData(chartDataStore.secondary.full);
+        }
+        
+        createOrUpdateChart();
+    }
+
+    // Search function using server-side fred-proxy.php
+    function performSearch(query, isCompare = false) {
+        const resultsList = isCompare ? compareSearchResults : searchResults;
+        
+        if (query.length < 2) {
+            resultsList.innerHTML = '';
+            return;
+        }
+        
+        // Search using server-side fred-proxy.php
+        fetch(`${FRED_PROXY_URL}?search=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                resultsList.innerHTML = '';
+                
+                if (data.length > 0) {
+                    data.forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item.title;
+                        li.addEventListener('click', function() {
+                            if (isCompare) {
+                                fetchData(item.id, item.title, true);
+                                compareModal.style.display = 'none';
+                                compareSearchInput.value = '';
+                            } else {
+                                fetchData(item.id, item.title, false);
+                                searchPanel.classList.remove('active');
+                                searchInput.value = '';
+                            }
+                        });
+                        resultsList.appendChild(li);
+                    });
+                } else {
+                    const li = document.createElement('li');
+                    li.textContent = 'No results found';
+                    li.style.opacity = '0.6';
+                    resultsList.appendChild(li);
+                }
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                resultsList.innerHTML = '<li style="opacity: 0.6;">Search error: ' + error.message + '</li>';
+            });
+    }
+
+    // Compare functions
+    function addCompareItem(title, seriesId) {
+        compareItems.push({ title, seriesId, visible: true });
+        updateComparisonSidebar();
+    }
+
+    function updateComparisonSidebar() {
+        if (compareItems.length > 0) {
+            comparisonSidebar.classList.add('active');
+            comparisonList.innerHTML = '';
+            
+            compareItems.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'zd-comparison-item';
+                div.innerHTML = `
+                    <span style="opacity: ${item.visible ? 1 : 0.5}">${item.title}</span>
+                    <div class="zd-comparison-actions">
+                        <button class="zd-comparison-action" onclick="toggleCompareItem(${index})" title="${item.visible ? 'Hide' : 'Show'}">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="${item.visible ? 'M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7z' : 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z'}"/>
+                            </svg>
+                        </button>
+                        <button class="zd-comparison-action" onclick="removeCompareItem(${index})" title="Remove">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                comparisonList.appendChild(div);
+            });
+        } else {
+            comparisonSidebar.classList.remove('active');
+        }
+    }
+
+    // Global functions for compare actions
+    window.toggleCompareItem = function(index) {
+        compareItems[index].visible = !compareItems[index].visible;
+        if (compareItems[index].visible) {
+            if (chartDataStore.secondary.title === compareItems[index].title) {
+                createOrUpdateChart();
+            }
+        } else {
+            if (chartDataStore.secondary.title === compareItems[index].title) {
+                chartDataStore.secondary = { full: [], current: [], title: '' };
+                createOrUpdateChart();
+            }
+        }
+        updateComparisonSidebar();
+    };
+
+    window.removeCompareItem = function(index) {
+        const removedItem = compareItems[index];
+        compareItems.splice(index, 1);
+        
+        if (chartDataStore.secondary.title === removedItem.title) {
+            chartDataStore.secondary = { full: [], current: [], title: '' };
+            createOrUpdateChart();
+        }
+        
+        updateComparisonSidebar();
+    };
+
+    // Event listeners
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            dashboard.classList.toggle('dark-theme');
+            const isDark = dashboard.classList.contains('dark-theme');
+            
+            document.querySelector('.zd-sun-icon').style.display = isDark ? 'none' : 'block';
+            document.querySelector('.zd-moon-icon').style.display = isDark ? 'block' : 'none';
+            
+            currentTheme = isDark ? themes.dark : themes.light;
+            if (zestraChart) createOrUpdateChart();
+        });
+    }
+
+    if (fullscreenToggle) {
+        fullscreenToggle.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                dashboard.requestFullscreen().catch(err => console.error('Fullscreen error:', err));
+            } else {
+                document.exitFullscreen();
+            }
+        });
+    }
+
+    if (searchToggle && searchPanel && searchInput) {
+        searchToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            searchPanel.classList.toggle('active');
+            if (searchPanel.classList.contains('active')) {
+                searchInput.focus();
+            }
+        });
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => performSearch(searchInput.value, false), 300);
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+        });
+    }
+
+    // Chart type controls
+    if (lineChart && barChart) {
+        lineChart.addEventListener('click', function() {
+            document.querySelectorAll('.zd-chart-type[data-type]').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            currentChartType = 'line';
+            if (zestraChart) createOrUpdateChart();
+        });
+
+        barChart.addEventListener('click', function() {
+            document.querySelectorAll('.zd-chart-type[data-type]').forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            currentChartType = 'bar';
+            if (zestraChart) createOrUpdateChart();
+        });
+    }
+
+    // Timeframe controls
+    timeframeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            timeframeButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            applyTimeframeFilter(this.dataset.range);
+        });
+    });
+
+    // Compare modal controls
+    if (compareBtn && compareModal && closeCompareModal) {
+        compareBtn.addEventListener('click', () => {
+            compareModal.style.display = 'flex';
+            compareSearchInput.focus();
+        });
+
+        closeCompareModal.addEventListener('click', () => {
+            compareModal.style.display = 'none';
+        });
+    }
+
+    if (closeSidebar) {
+        closeSidebar.addEventListener('click', () => {
+            comparisonSidebar.classList.remove('active');
+        });
+    }
+
+    if (compareSearchInput) {
+        compareSearchInput.addEventListener('input', () => {
+            clearTimeout(searchDebounceTimer);
+            searchDebounceTimer = setTimeout(() => performSearch(compareSearchInput.value, true), 300);
+        });
+    }
+
+    // Close panels when clicking outside
+    document.addEventListener('click', (e) => {
+        if (searchPanel && !searchPanel.contains(e.target) && e.target !== searchToggle) {
+            searchPanel.classList.remove('active');
+        }
+        
+        if (compareModal && (e.target === compareModal || e.target.classList.contains('zd-modal-overlay'))) {
+            compareModal.style.display = 'none';
+        }
+    });
+
+    // Initialize with default indicator
+    loadDefaultIndicator();
+});
